@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timezone
 
 # =========================
-# CONFIGdfsdf
+# CONFIGdfsdf loool sudu sudas ciasda
 # =========================
 
 load_dotenv()
