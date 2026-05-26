@@ -377,5 +377,5 @@ except:
 
 # Auto-refresh
 if auto_poll:
-    time.sleep(1)  # Small delay for better UX
+    time.sleep(5)  # Small delay for better UX
     st.rerun()
