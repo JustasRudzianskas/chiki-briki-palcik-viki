@@ -16,7 +16,7 @@ def save_target_activity(item: dict) -> dict:
     with engine.begin() as conn:
         conn.execute(
             text("""
-                INSERT OR IGNORE INTO target_activity (
+                INSERT INTO target_activity (
                     activity_id, activity_type, timestamp, market, outcome,
                     token_id, side, price, size, usdc_size,
                     transaction_hash, raw_json
@@ -25,6 +25,18 @@ def save_target_activity(item: dict) -> dict:
                     :token_id, :side, :price, :size, :usdc_size,
                     :transaction_hash, :raw_json
                 )
+                ON CONFLICT(activity_id) DO UPDATE SET
+                    activity_type = excluded.activity_type,
+                    timestamp = excluded.timestamp,
+                    market = excluded.market,
+                    outcome = excluded.outcome,
+                    token_id = excluded.token_id,
+                    side = excluded.side,
+                    price = excluded.price,
+                    size = excluded.size,
+                    usdc_size = excluded.usdc_size,
+                    transaction_hash = excluded.transaction_hash,
+                    raw_json = excluded.raw_json
             """),
             {
                 "activity_id": aid,

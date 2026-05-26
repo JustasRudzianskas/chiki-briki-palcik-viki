@@ -21,15 +21,37 @@ def activity_id(item: dict) -> str | None:
 
 
 def activity_timestamp(item: dict) -> str:
-    for key in ("timestamp", "createdAt", "time", "blockTimestamp"):
-        val = item.get(key)
-        if val is None:
-            continue
-        if isinstance(val, (int, float)):
-            if val > 1e12:
-                val = val / 1000
-            return datetime.fromtimestamp(val, tz=timezone.utc).isoformat()
-        return str(val)
+    """
+    Polymarket activity uses `timestamp` as Unix seconds (see Data API docs).
+    Always prefer that field — other fields can be market metadata with wrong dates.
+    """
+    val = item.get("timestamp")
+    if val is None:
+        return utcnow().isoformat()
+
+    if isinstance(val, (int, float)):
+        ts = float(val)
+        # Values > 1e12 are milliseconds; API docs use seconds.
+        if ts > 1e12:
+            ts = ts / 1000.0
+        return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+
+    if isinstance(val, str):
+        s = val.strip()
+        if s.isdigit():
+            ts = float(s)
+            if ts > 1e12:
+                ts = ts / 1000.0
+            return datetime.fromtimestamp(ts, tz=timezone.utc).isoformat()
+        # ISO-8601 string from API
+        try:
+            parsed = datetime.fromisoformat(s.replace("Z", "+00:00"))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            return parsed.astimezone(timezone.utc).isoformat()
+        except ValueError:
+            return s
+
     return utcnow().isoformat()
 
 
@@ -93,14 +115,16 @@ def fetch_activity(wallet: str, since_ts: int | None = None) -> list[dict]:
     if since_ts is None:
         since_ts = int(time.time()) - LOOKBACK_HOURS * 3600
 
+    # Official param is `start` (seconds), not `startTs`. Wrong param = old trades mixed in.
     url = (
         f"{DATA_API_HOST}/activity"
         f"?user={wallet}"
         f"&limit=200"
         f"&offset=0"
         f"&type=TRADE,REDEEM"
-        f"&startTs={since_ts}"
-        f"&sortDirection=ASC"
+        f"&start={since_ts}"
+        f"&sortBy=TIMESTAMP"
+        f"&sortDirection=DESC"
     )
     try:
         r = session.get(url, timeout=12)
